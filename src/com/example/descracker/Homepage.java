@@ -30,6 +30,7 @@ public class Homepage extends Activity implements OnClickListener {
 	private static double fileLines = 234937;
 	private static double counter = 1;
 	private static boolean finishedDict = false;
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -39,7 +40,7 @@ public class Homepage extends Activity implements OnClickListener {
 		Button getText = (Button) findViewById(R.id.cipherGet);
 		decrypt.setOnClickListener(this);
 		getText.setOnClickListener(this);
-		new buildDict().execute();
+		//new buildDict().execute();
 		
 	}
 		
@@ -67,38 +68,7 @@ public class Homepage extends Activity implements OnClickListener {
 	}
 	
 	
-	private class buildDict extends AsyncTask<String,String,String>{
-
-		@Override
-		protected String doInBackground(String... arg0) {
-			try{
-			BufferedReader br = new BufferedReader(new InputStreamReader(getAssets().open("dictionary-english")));
-			String check;
-			
-			publishProgress("Building dictionary");
-			
-
-			while((check = br.readLine()) != null){
-				//System.out.println((counter/fileLines)*100);
-				//System.out.println(counter+"*****"+(Math.round(counter/fileLines)*100));
-				Dictionary.add(check);
-				counter++;
-			}
-			
-				br.close();
-			
-		}catch(Exception e){
-			// Do something here
-		}
-			finishedDict = true;
-			return null;
-		}
-		
-		protected void onProgressUpdate(String... progress){
-			dialog.setMessage(progress[0]);
-		}
-		
-	}
+	
 	
 	// first read file then extract information out of json and then decrypts it
 	public String[] readJsonStream() throws IOException {
@@ -274,10 +244,20 @@ public class Homepage extends Activity implements OnClickListener {
 			
 			returnValue = temp;
 			
-			publishProgress("Building dictionary");
+			publishProgress("Building Dictionary");
 			
-			while(finishedDict == false){
-				dialog.setProgress((int) (Math.round(counter*100/fileLines)));
+			if(finishedDict == false){
+				BufferedReader br = new BufferedReader(new InputStreamReader(getAssets().open("dictionary-english")));
+				String check;
+				
+				while((check = br.readLine()) != null){
+					dialog.setProgress((int) (Math.round(counter*100/fileLines)));
+					Dictionary.add(check);
+					counter++;
+				}
+				
+				br.close();
+				finishedDict = true;
 			}
 			
 		    percentage = buildDict(returnValue);
