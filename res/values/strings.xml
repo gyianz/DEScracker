@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">DEScracker</string>
+    <string name="action_settings">Settings</string>
+    <string name="title_activity_browse">Browse</string>
+    <string name="Ciphertext">Ciphertext</string>
+	<string name="Key">Key</string>
+	<string name="Decrypted_Text">Decrypted Text</string>
+	<string name="Decrypt">Decrypt</string>
+	<string name="Cancel">Cancel</string>
+	<string name="Get_Cipher">Get Cipher</string>
+	<string name="PercentageOfMatch">Percentage of Matching English Text.</string>
+	
+</resources>
