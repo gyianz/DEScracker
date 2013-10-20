@@ -152,6 +152,16 @@ public class Homepage extends Activity implements OnClickListener {
 		
 	}
 	
+	public static int integerfrmbinary(String str){
+	    double j=0;
+	    for(int i=0;i<str.length();i++){
+	        if(str.charAt(i)== '1'){
+	        	j=j+ Math.pow(2,str.length()-1-i);
+	        }
+	    }
+	    return (int) j;
+	}
+	
 	
 	private float buildDict(String param) throws IOException{
 		
@@ -268,6 +278,18 @@ public class Homepage extends Activity implements OnClickListener {
 					
 					// Concat the padding cell to generate a 64 bits key
 					String finalKey = bin.concat(paddingCell);
+					 assert finalKey.length() % 4 == 0;
+				        String[] finalArray = new String[finalKey.length()/4];
+				        for (int index = 0; index < finalArray.length; index++)
+				            finalArray[index] = finalKey.substring(index*4,index*4 + 4);
+					String hexaKey ="";
+					for(String fa : finalArray){
+						hexaKey.concat(Integer.toHexString(integerfrmbinary(fa)));
+					}
+					
+					System.out.println(hexaKey);
+					//finalKey = Double.toHexString(pleaseWork);
+					
 					byte[] finalKeyByte = DES.parseBytes(finalKey);
 					
 					// Run the decrypt and check with dictionary
