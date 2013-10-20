@@ -153,50 +153,13 @@ public class Homepage extends Activity implements OnClickListener {
 	}
 	
 	
-	private String buildDict(String param) throws IOException{
+	private float buildDict(String param) throws IOException{
 		
-			
-		String finalResult = null;
 		float percentageOfCorrectness = DictionaryCheckHash.dictCheck(param, Dictionary);
-				
-		String temp = "The percentage matches with english words: ";
-		finalResult = temp.concat(String.valueOf(percentageOfCorrectness));	
-
-
-		return finalResult;
+	
+		return percentageOfCorrectness;
 		
 	}
-
-	
-	public void paddingBit(View v) throws UnsupportedEncodingException{
-		TextView editText = (TextView) findViewById(R.id.key);
-		String key = editText.getText().toString();
-		byte[] bytekey = key.getBytes();
-		byte[] decodedKey = Base64.decode(bytekey, Base64.DEFAULT);
-		String binary = null;
-		
-		for(int i = 0; i < decodedKey.length; i++){
-			String temp = Integer.toBinaryString( (int) decodedKey[i]);
-			if(binary == null){
-				binary = temp;
-				
-			}else{
-				binary = binary.concat(temp);
-				
-			}
-		}
-		int init = 0;
-		
-		for(int i = 0; i < ((int)Math.pow(2, 16) ); i++){
-		
-			String mystr = String.format("%16s", Integer.toBinaryString(init)).replace(' ', '0');
-			init = init + 1;
-			String test = binary.concat(mystr);
-		}
-	
-	}
-	
-	
 	
 	private class decrypt extends AsyncTask<String, String, String>{
 		
@@ -208,17 +171,31 @@ public class Homepage extends Activity implements OnClickListener {
 		String percentage = null;
 		
 		
-	protected void onPreExecute(){
-		
-		 ciphertext = editText.getText().toString();
-		 key = editText2.getText().toString();
-		 dialog = new ProgressDialog(Homepage.this);            
-         dialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-         dialog.setMax(100);
-         dialog.setMessage("Decrypting. Please Wait...");
-         dialog.setCancelable(true);
-         dialog.show();              
-	}
+		protected void onPreExecute(){
+			
+			 ciphertext = editText.getText().toString();
+			 key = editText2.getText().toString();
+			 
+			 try {
+				byte[] cipher64 = ciphertext.getBytes("UTF-8");
+				ciphertext = Base64.encodeToString(cipher64, Base64.DEFAULT);
+				byte[] key64 = key.getBytes("UTF-8");
+				key = Base64.encodeToString(key64, Base64.DEFAULT);
+						
+			} catch (UnsupportedEncodingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			 
+			 
+			 
+			 dialog = new ProgressDialog(Homepage.this);            
+	         dialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+	         dialog.setMax(100);
+	         dialog.setMessage("Decrypting. Please Wait...");
+	         dialog.setCancelable(true);
+	         dialog.show();              
+		}
 		/*	pDialog = new ProgressDialog(Homepage.this);
 			pDialog.setTitle("Loading.");
     		pDialog.setMessage("Please Wait...");
@@ -232,98 +209,138 @@ public class Homepage extends Activity implements OnClickListener {
 	
 		
 	@Override
-	protected String doInBackground(String... params) {
-		
-		String returnValue = null;
-		try {
-			
-			String temp = runDecrypt();
-			while(DES.progressTick != -99 && DES.progressTotal != -99 ){
-				dialog.setProgress((int) Math.round(DES.progressTick *100 / DES.progressTotal));
-			}
-			
-			returnValue = temp;
-			
-			publishProgress("Building Dictionary");
-			
-			if(finishedDict == false){
-				BufferedReader br = new BufferedReader(new InputStreamReader(getAssets().open("dictionary-english")));
-				String check;
+		protected String doInBackground(String... params) {
+			float bestPercentage = 0;
+			String returnValue = null;
+			try {
+				publishProgress("Building Dictionary");
 				
-				while((check = br.readLine()) != null){
-					dialog.setProgress((int) (Math.round(counter*100/fileLines)));
-					Dictionary.add(check);
-					counter++;
+				if(finishedDict == false){
+					BufferedReader br = new BufferedReader(new InputStreamReader(getAssets().open("dictionary-english")));
+					String check;
+					
+					while((check = br.readLine()) != null){
+						dialog.setProgress((int) (Math.round(counter*100/fileLines)));
+						Dictionary.add(check);
+						counter++;
+						//TESTING
+					}
+					
+					br.close();
+					finishedDict = true;
 				}
 				
-				br.close();
-				finishedDict = true;
-			}
-			
-		    percentage = buildDict(returnValue);
-
-		    
-			publishProgress("Checking validity");
-			while(DictionaryCheckHash.progressTick != -99 && DictionaryCheckHash.progressTotal != -99){
+				// decode the ciphertext and key
+				byte[] decodedKey = Base64.decode(key, Base64.DEFAULT);
+				byte[] decodedCiphertext = Base64.decode(ciphertext, Base64.DEFAULT);
 				
-				dialog.setProgress((int) Math.floor(DictionaryCheckHash.progressTick / DictionaryCheckHash.progressTotal *100));
+			
+				// convert the key into binary for padding
+				String bin = null;
+				
+				for(byte b : decodedKey){
+					
+					if(bin == null){
+						bin = Integer.toBinaryString(b);
+					}else{
+						bin = bin.concat(Integer.toBinaryString(b));
+					}
+				}
+				
+				// get the total times of padding
+				int paddingCount = 64 - bin.length();
+				
+				// Check how many times to pad and generate a string to pass into string format, eg: %16s
+				String tempString = "%";
+				tempString = tempString.concat(String.valueOf(paddingCount));
+				tempString = tempString.concat("s");
+				
+				int init = 0;
+				
+				publishProgress("Decrypting");
+				System.out.println(Math.pow(2, paddingCount));
+				
+				for(int i = 0; i < ((int)Math.pow(2, paddingCount)); i++){
+					
+					dialog.setProgress( i*100/(int) Math.pow(2,paddingCount));
+					
+					String paddingCell = String.format(tempString, Integer.toBinaryString(init)).replace(' ', '0');
+					
+					// Concat the padding cell to generate a 64 bits key
+					String finalKey = bin.concat(paddingCell);
+					byte[] finalKeyByte = DES.parseBytes(finalKey);
+					
+					// Run the decrypt and check with dictionary
+					String temp = runDecrypt(decodedCiphertext, finalKeyByte);
+					
+					float tempPercent = buildDict(temp);
+					
+					//get the best percentage of matching and assign the highest correct rate text into return value
+					if(tempPercent > bestPercentage){
+						bestPercentage = tempPercent;
+						returnValue = temp;
+					}
+					
+					// counter of padding
+					init = init + 1;
+				}
+				
+				percentage = "The percentage matches with english words: ";
+				percentage = percentage.concat(String.valueOf(bestPercentage));
+				
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-
-			dialog.setProgress(100);
-			
-		} catch (IOException e) {
-			e.printStackTrace();
+			return returnValue;
 		}
-		return returnValue;
-	}
 	
 	@Override
-	   protected void onProgressUpdate(String... progress) {
+		protected void onProgressUpdate(String... progress) {
 		 //setProgress(progress[0]);
-		 dialog.setMessage(progress[0]);
-	   }
+			dialog.setMessage(progress[0]);
+	   	}
 	@Override
-	protected void onPostExecute(String finResult){
-	//	pDialog.setMessage("Done");
-	//	pDialog.dismiss();
-		dialog.setMessage("Done");
-		dialog.dismiss();
-		
-		TextView FinalResult = (TextView)findViewById(R.id.decryptText);
-		FinalResult.setMovementMethod(new ScrollingMovementMethod());
-		FinalResult.setText(finResult);
-		
-		TextView resultView = (TextView) findViewById(R.id.Percentage);
-		resultView.setText(percentage);
-		
-	}
-	
-	public String runDecrypt() throws IOException{	
-		
-		String returnValue = null;
-		try{
+		protected void onPostExecute(String finResult){
+		//	pDialog.setMessage("Done");
+		//	pDialog.dismiss();
+			dialog.setMessage("Done");
+			dialog.dismiss();
 			
-			byte[] cipherByte = DES.parseBytes(ciphertext);
-			String decKey = DES.convertStringToHex(key);
-			 
-			byte[] keyByte = DES.parseBytes(decKey);
-			String decryptResult = DES.hex(DES.decryptCBC(cipherByte, keyByte));
-			 
-			String temp = decryptResult.replace(" ", "");
-			String finalDecrypt = temp.substring(0, (temp.length() - DES.getConcatCount()));
-			String finResult  = DES.convertHexToString(finalDecrypt);
-			 
+			TextView FinalResult = (TextView)findViewById(R.id.decryptText);
+			FinalResult.setMovementMethod(new ScrollingMovementMethod());
+			FinalResult.setText(finResult);
 			
-			returnValue = finResult;
+			TextView resultView = (TextView) findViewById(R.id.Percentage);
+			resultView.setText(percentage);
 			
-			
-			
-		}catch(Exception e){
-			e.printStackTrace();
 		}
-		return returnValue;
-		
-	}
+	
+		public String runDecrypt(byte[] cipherByte, byte[] keyByte) throws IOException{	
+			
+			String returnValue = null;
+			try{
+				
+				//byte[] cipherByte = DES.parseBytes(ciphertext);
+				//String decKey = DES.convertStringToHex(key);
+				 
+				//byte[] keyByte = DES.parseBytes(decKey);
+				String decryptResult = DES.hex(DES.decryptCBC(cipherByte, keyByte));
+				 
+				String temp = decryptResult.replace(" ", "");
+				String finalDecrypt = temp.substring(0, (temp.length() - DES.getConcatCount()));
+				String finResult  = DES.convertHexToString(finalDecrypt);
+				 
+				
+				returnValue = finResult;
+				
+				
+				
+			}catch(Exception e){
+				e.printStackTrace();
+			}
+			return returnValue;
+			
+		}
 	
 	
 	
